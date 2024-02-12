@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 import Avatar from "@mui/material/Avatar";
-import Alert from '@mui/material/Alert';
+import Alert from "@mui/material/Alert";
 
 import { MdSearch, MdRefresh } from "react-icons/md";
 import { CgSpinner } from "react-icons/cg";
@@ -15,7 +15,6 @@ const GitHubFollowerList = () => {
     const [unfollowers, setUnfollowers] = useState([]);
     const [error, setError] = useState();
 
-
     const [userProfile, setUserProfile] = useState();
     const [loading, setLoading] = useState(false);
     const [refresh, setRefresh] = useState(false);
@@ -28,7 +27,7 @@ const GitHubFollowerList = () => {
 
     useEffect(() => {
         if (refresh) {
-            searchFollowers()
+            searchFollowers();
         }
     }, [refresh]);
 
@@ -37,7 +36,7 @@ const GitHubFollowerList = () => {
             const response = await getMyProfile(username);
             setUserProfile(response.data);
         } catch (apiError) {
-            setError(apiError.response.data.message)
+            setError(apiError.response.data.message);
         }
     };
 
@@ -68,10 +67,10 @@ const GitHubFollowerList = () => {
             setFollowers(followersData);
             getProfile();
             searchFollowing();
-            setError("")
+            setError("");
         } catch (apiError) {
             console.error("Error fetching followers:", apiError.message);
-            setError(apiError.message)
+            setError(apiError.message);
             setLoading(false);
             setButtonText("Search");
         }
@@ -96,7 +95,7 @@ const GitHubFollowerList = () => {
                     page++;
                 } else {
                     console.error("Error fetching following:", response.statusText);
-                    alert(response.statusText)
+                    alert(response.statusText);
                     break;
                 }
             }
@@ -105,7 +104,7 @@ const GitHubFollowerList = () => {
             if (refresh) {
                 setRefresh(false);
             }
-            setError("")
+            setError("");
             findUnfollowers();
         } catch (apiError) {
             console.error("Error fetching following:", apiError.message);
@@ -120,14 +119,14 @@ const GitHubFollowerList = () => {
         const unfollowers = following.filter((follower) => !followersLogins.includes(follower.login));
         setUnfollowers(unfollowers);
         setLoading(false);
-        setError("")
+        setError("");
         setButtonText("Search");
     };
 
     const changeUser = () => {
-        setFollowers([])
-        setFollowing([])
-        setUnfollowers([])
+        setFollowers([]);
+        setFollowing([]);
+        setUnfollowers([]);
         setUserProfile("");
         setUsername("");
     };
@@ -141,7 +140,7 @@ const GitHubFollowerList = () => {
                 <div className="mb-5">
                     {userProfile ? (
                         <div className="w-full flex">
-                            <Avatar alt="Remy Sharp" sx={{ width: 120, height: 120 }} src={userProfile?.avatar_url} />
+                            <Avatar onClick={() => window.open(userProfile?.html_url, "_blank")} alt="Remy Sharp" sx={{ width: 120, height: 120 }} src={userProfile?.avatar_url} />
                             <div className="w-full ml-5">
                                 <div className="flex items-center justify-between">
                                     <div>
@@ -159,7 +158,7 @@ const GitHubFollowerList = () => {
                                     {userProfile && (
                                         <div className="">
                                             <button onClick={changeUser} className="bg-red-100 py-3 px-3 transition-all duration-300  rounded-xl text-red-500 text-sm font-bold hover:bg-red-200">
-                                               Change User
+                                                Change User
                                             </button>
                                             {followers.length > 0 && following.length > 0 && (
                                                 <button
@@ -188,23 +187,21 @@ const GitHubFollowerList = () => {
                 </div>
                 <div className="flex flex-col items-start">
                     {!userProfile && (
-                    <>
-                      {error &&
-                        <Alert className="mb-3 !rounded-xl !bg-red-500" variant="filled" severity="error">
-                        {error}
-                      </Alert>
-                        }
-                        <button
-                            onClick={searchFollowers}
-                            disabled={!username.length}
-                            className="h-10 flex items-center justify-center bg-blue-500 text-white py-3 px-4 transition-all duration-300 rounded-xl hover:bg-blue-300 disabled:bg-blue-300"
-                        >
-                            {loading ? <CgSpinner size={20} className="mr-2 animate-spin" /> : <MdSearch size={20} className="mr-2" />}
-                            {buttonText}
-                        </button>
-                      
-                        
-                      </>
+                        <>
+                            {error && (
+                                <Alert className="mb-3 !rounded-xl !bg-red-500" variant="filled" severity="error">
+                                    {error}
+                                </Alert>
+                            )}
+                            <button
+                                onClick={searchFollowers}
+                                disabled={!username.length}
+                                className="h-10 flex items-center justify-center bg-blue-500 text-white py-3 px-4 transition-all duration-300 rounded-xl hover:bg-blue-300 disabled:bg-blue-300"
+                            >
+                                {loading ? <CgSpinner size={20} className="mr-2 animate-spin" /> : <MdSearch size={20} className="mr-2" />}
+                                {buttonText}
+                            </button>
+                        </>
                     )}
                 </div>
                 {userProfile && followers.length > 0 && following.length > 0 && (
@@ -213,7 +210,11 @@ const GitHubFollowerList = () => {
                             <h3 className="text-xl font-semibold mb-3">Followers ({followers.length})</h3>
                             <ul>
                                 {followers.map((follower, index) => (
-                                    <li key={index} className="w-[15rem] flex items-center justify-start mb-3 py-4 pl-4 bg-slate-100 rounded-xl">
+                                    <li
+                                        onClick={() => window.open(follower.html_url, "_blank")}
+                                        key={index}
+                                        className="w-[15rem] flex items-center cursor-pointer justify-start mb-3 py-4 pl-4 bg-slate-100 rounded-xl"
+                                    >
                                         <Avatar alt="Remy Sharp" src={follower.avatar_url} />
                                         <p className="ml-4">{follower.login}</p>
                                     </li>
@@ -225,7 +226,11 @@ const GitHubFollowerList = () => {
                             <h3 className="text-xl font-semibold mb-3">Following ({following.length})</h3>
                             <ul>
                                 {following.map((following, index) => (
-                                    <li key={index} className=" w-[15rem] flex items-center justify-between mb-3 py-4 px-5 bg-slate-100 rounded-xl">
+                                    <li
+                                        onClick={() => window.open(following.html_url, "_blank")}
+                                        key={index}
+                                        className=" w-[15rem] cursor-pointer flex items-center justify-between mb-3 py-4 px-5 bg-slate-100 rounded-xl"
+                                    >
                                         <div className="flex items-center">
                                             <Avatar alt="Remy Sharp" src={following.avatar_url} />
                                             <p className="ml-4">{following.login}</p>
