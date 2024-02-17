@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from "react";
 
-import Avatar from "@mui/material/Avatar";
 import Alert from "@mui/material/Alert";
 
-import { MdSearch, MdRefresh } from "react-icons/md";
+import { MdSearch } from "react-icons/md";
 import { CgSpinner } from "react-icons/cg";
-import { FaLocationDot } from "react-icons/fa6";
-import { getFollowers, getFollowing, getMyProfile } from "../api/apiCall";
+
+import UserProfile from "./UserProfile/UserProfile";
+import Followers from "./Followers/Followers";
+import Following from "./Following/Following";
+import Unfollowers from "./Unfollowers/Unfollowers";
+
+import { getFollowers, getFollowing, getMyProfile, userUnfollow } from "../api/apiCall";
 
 const GitHubFollowerList = () => {
     const [username, setUsername] = useState("");
@@ -17,19 +21,14 @@ const GitHubFollowerList = () => {
 
     const [userProfile, setUserProfile] = useState();
     const [loading, setLoading] = useState(false);
+    const [unfLoading, setUnfLoading] = useState(false);
     const [refresh, setRefresh] = useState(false);
 
     const [buttonText, setButtonText] = useState("Search");
 
     useEffect(() => {
         findUnfollowers();
-    }, [followers, following, refresh]);
-
-    useEffect(() => {
-        if (refresh) {
-            searchFollowers();
-        }
-    }, [refresh]);
+    }, [followers, following]);
 
     const getProfile = async () => {
         try {
@@ -43,8 +42,9 @@ const GitHubFollowerList = () => {
     const searchFollowers = async () => {
         setLoading(true);
         setButtonText("Please wait...");
+
         try {
-            let followersData = [];
+            let allFollowers = [];
             let page = 1;
 
             while (true) {
@@ -57,20 +57,22 @@ const GitHubFollowerList = () => {
                         break;
                     }
 
-                    followersData = [...followersData, ...data];
+                    allFollowers = [...allFollowers, ...data];
                     page++;
                 } else {
-                    console.error("Error fetching followers:", response.statusText);
                     break;
                 }
             }
-            setFollowers(followersData);
-            getProfile();
+            setFollowers(allFollowers);
             searchFollowing();
+            if(!userProfile) {
+                getProfile();
+            }
             setError("");
         } catch (apiError) {
             console.error("Error fetching followers:", apiError.message);
             setError(apiError.message);
+        } finally {
             setLoading(false);
             setButtonText("Search");
         }
@@ -78,8 +80,8 @@ const GitHubFollowerList = () => {
 
     const searchFollowing = async () => {
         try {
-            let followingData = [];
             let page = 1;
+            let allFollowing = [];
 
             while (true) {
                 const response = await getFollowing(username, page);
@@ -91,25 +93,17 @@ const GitHubFollowerList = () => {
                         break;
                     }
 
-                    followingData = [...followingData, ...data];
+                    allFollowing = [...allFollowing, ...data];
                     page++;
                 } else {
-                    console.error("Error fetching following:", response.statusText);
-                    alert(response.statusText);
                     break;
                 }
             }
 
-            setFollowing(followingData);
-            if (refresh) {
-                setRefresh(false);
-            }
+            setFollowing(allFollowing);
             setError("");
-            findUnfollowers();
         } catch (apiError) {
             console.error("Error fetching following:", apiError.message);
-            setLoading(false);
-            setRefresh(false);
             setButtonText("Search");
         }
     };
@@ -118,9 +112,37 @@ const GitHubFollowerList = () => {
         const followersLogins = followers.map((follower) => follower.login);
         const unfollowers = following.filter((follower) => !followersLogins.includes(follower.login));
         setUnfollowers(unfollowers);
+        setRefresh(false);
         setLoading(false);
         setError("");
         setButtonText("Search");
+    };
+
+    const handleUnfollow = async (username, loadingIndex) => {
+        try {
+            setUnfollowers((prevUnfollowers) =>
+                prevUnfollowers.map((follower, index) => ({
+                    ...follower,
+                    loadingIndex: index === loadingIndex ? index : undefined,
+                }))
+            );
+            const response = await userUnfollow(username);
+            if (response.status === 204) {
+                searchFollowers();
+            }
+        } catch (error) {
+            console.error("Bir hata oluştu:", error);
+            setError("Bir hata oluştu. Lütfen tekrar deneyin.");
+        } finally {
+            setTimeout(() => {
+                setUnfollowers((prevUnfollowers) =>
+                    prevUnfollowers.map((follower, index) => ({
+                        ...follower,
+                        loadingIndex: undefined,
+                    }))
+                );
+            }, 2000);
+        }
     };
 
     const changeUser = () => {
@@ -138,52 +160,16 @@ const GitHubFollowerList = () => {
                     <h2 className="text-3xl font-bold mb-5">GitHub Follower Tracker</h2>
                 </div>
                 <div className="mb-5">
-                    {userProfile ? (
-                        <div className="w-full flex">
-                            <Avatar onClick={() => window.open(userProfile?.html_url, "_blank")} alt="Remy Sharp" sx={{ width: 120, height: 120 }} src={userProfile?.avatar_url} />
-                            <div className="w-full ml-5">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h2 className="text-2xl font-medium mt-4">{userProfile?.login}</h2>
-                                        {userProfile.location && (
-                                            <p className="text-slate-500 font-normal mt-1 flex items-center">
-                                                <FaLocationDot size={15} className="mr-1" /> {userProfile?.location}
-                                            </p>
-                                        )}
-                                        <p title={userProfile?.bio} className="text-slate-400 font-normal mt-3">
-                                            {userProfile?.bio && userProfile.bio.length > 70 ? userProfile.bio.slice(0, 70) + "..." : userProfile.bio}
-                                        </p>
-                                    </div>
-
-                                    {userProfile && (
-                                        <div className="">
-                                            <button onClick={changeUser} className="bg-red-100 py-3 px-3 transition-all duration-300  rounded-xl text-red-500 text-sm font-bold hover:bg-red-200">
-                                                Change User
-                                            </button>
-                                            {followers.length > 0 && following.length > 0 && (
-                                                <button
-                                                    onClick={() => setRefresh(true)}
-                                                    className="h-10 mt-3 flex items-center justify-center bg-green-200 text-green-800 py-3 px-3 transition-all duration-300 rounded-xl outline-none hover:bg-green-300"
-                                                >
-                                                    <MdRefresh size={20} className={refresh ? "mr-2 animate-spin" : "mr-2"} />
-                                                    Refresh
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <input
-                            autoFocus
-                            type="text"
-                            placeholder="GitHub Username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="border outline-none transition-all duration-300 focus:ring-2 focus:ring-amber-400 rounded-xl p-3 w-full"
-                        />
-                    )}
+                    <UserProfile
+                        userProfile={userProfile}
+                        changeUser={changeUser}
+                        refresh={refresh}
+                        setRefresh={setRefresh}
+                        followers={followers}
+                        following={following}
+                        username={username}
+                        setUsername={setUsername}
+                    />
                 </div>
                 <div className="flex flex-col items-start">
                     {!userProfile && (
@@ -204,67 +190,19 @@ const GitHubFollowerList = () => {
                         </>
                     )}
                 </div>
-                {userProfile && followers.length > 0 && following.length > 0 && (
+                {userProfile && followers.length > 0 && following.length > 0 ? (
                     <div className="flex mt-2">
-                        <div className="py-4 h-[30rem] ml-3 mt-6 overflow-auto">
-                            <h3 className="text-xl font-semibold mb-3">Followers ({followers.length})</h3>
-                            <ul>
-                                {followers.map((follower, index) => (
-                                    <li
-                                        onClick={() => window.open(follower.html_url, "_blank")}
-                                        key={index}
-                                        className="w-[15rem] flex items-center cursor-pointer justify-start mb-3 py-4 pl-4 bg-slate-100 rounded-xl"
-                                    >
-                                        <Avatar alt="Remy Sharp" src={follower.avatar_url} />
-                                        <p className="ml-4">{follower.login}</p>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        <div className="py-4 h-[30rem] ml-10 mt-6 overflow-auto">
-                            <h3 className="text-xl font-semibold mb-3">Following ({following.length})</h3>
-                            <ul>
-                                {following.map((following, index) => (
-                                    <li
-                                        onClick={() => window.open(following.html_url, "_blank")}
-                                        key={index}
-                                        className=" w-[15rem] cursor-pointer flex items-center justify-between mb-3 py-4 px-5 bg-slate-100 rounded-xl"
-                                    >
-                                        <div className="flex items-center">
-                                            <Avatar alt="Remy Sharp" src={following.avatar_url} />
-                                            <p className="ml-4">{following.login}</p>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        <div className="py-4 h-[30rem] ml-10 mt-6 overflow-auto">
-                            <h3 className="text-xl font-semibold mb-3">Unfollowers ({unfollowers.length})</h3>
-                            <ul>
-                                {unfollowers.map((unfollower, index) => (
-                                    <li
-                                        key={index}
-                                        className="w-[21rem] flex items-center group/item justify-between mb-3 py-4 px-5 bg-slate-100 transition-all duration-300 hover:bg-slate-50 cursor-pointer rounded-xl"
-                                    >
-                                        <div className="flex items-center">
-                                            <Avatar alt="Remy Sharp" src={unfollower.avatar_url} className="transition-all duration-300 group-hover/item:!scale-110" />
-                                            <p className="ml-4">{unfollower.login}</p>
-                                        </div>
-                                        <a
-                                            href={unfollower.html_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="bg-blue-100 py-3 px-3 transition-all duration-300 group-hover/item:bg-blue-400 group-hover/item:text-white  rounded-xl text-blue-500 text-xs font-bold"
-                                        >
-                                            Unfollow
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                        <Followers followers={followers} />
+                        <Following following={following} />
+                        <Unfollowers unfollowers={unfollowers} handleUnfollow={handleUnfollow} unfLoading={unfLoading} />
                     </div>
+                ) : (
+                    (loading === false && followers.length <= 0) ||
+                    (unfollowers.length <= 0 && (
+                        <div className="w-full flex items-center py-10 justify-center">
+                            <CgSpinner size={30} className="animate-spin text-blue-500" />
+                        </div>
+                    ))
                 )}
             </div>
         </div>
